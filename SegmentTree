@@ -1,0 +1,124 @@
+package com.data_structure.segment_tree;
+
+public class SegmentTree<E> {
+    private E[] data;
+    private E[] tree;
+    private Merger<E> merger;
+
+    public SegmentTree(E[] arr,Merger merger){
+        this.merger = merger;
+        data = (E[]) new Object[arr.length];
+        for (int i = 0; i < arr.length; i++) {
+            data[i] = arr[i];
+        }
+        tree = (E[]) new Object[arr.length * 4];
+        buildSegmentTree(0,0,data.length - 1);
+    }
+
+//    在treeIndex的位置创建区间为[l,r]的线段树
+    private void buildSegmentTree(int treeIndex, int l, int r) {
+        if (l == r){
+            tree[treeIndex] = data[l];
+            return;
+        }
+
+        int leftTreeIndex = leftChild(treeIndex);
+        int rightTreeIndex = rightChild(treeIndex);
+
+        int middle = l + (r - l) / 2;
+
+        buildSegmentTree(leftTreeIndex,l,middle);
+        buildSegmentTree(rightTreeIndex,middle + 1,r);
+
+//        创建好左右线段子树之后，进行的融合操作，才是业务的核心逻辑
+        tree[treeIndex] =  merger.merge(tree[leftTreeIndex],tree[rightTreeIndex]);
+    }
+
+    public int getSize(){
+        return data.length;
+    }
+    
+    public E get(int index){
+        if (index < 0 || index >= data.length){
+            throw new IllegalArgumentException("Index is illegal...");
+        }
+        return data[index];
+    }
+
+//    根据当前节点的索引找到其左孩子的索引
+    public int leftChild(int index){
+        if (index < 0 || index >= data.length){
+            throw new IllegalArgumentException("Index is illegal...");
+        }
+        return index * 2 + 1;
+    }
+
+//    根据当前节点的索引找到其右孩子所在的索引
+    public int rightChild(int index){
+        if (index < 0 || index >= data.length){
+            throw new IllegalArgumentException("Index is illegal...");
+        }
+        return index * 2 + 2;
+    }
+
+//    返回区间[queryL,queryR]的值
+    public E query(int queryL,int queryR){
+        if (queryL < 0 || queryL >= data.length || queryR < 0 || queryR >= data.length || queryL > queryR){
+            throw new IllegalArgumentException("Index is illegal...");
+        }
+        return query(0,0,data.length - 1,queryL,queryR);
+    }
+
+
+
+//    在以treeIndex为根的线段树中[l,,,r]的范围里，搜索区间[queryL,queryR]的值
+    private E query(int treeIndex, int l, int r,int queryL,int queryR) {
+        if (l == queryL && r == queryR){
+            return tree[treeIndex];
+        }
+        
+        int middle = l + (r - l) / 2;
+        int leftTreeIndex = leftChild(treeIndex);
+        int rightTreeIndex = rightChild(treeIndex);
+        if (queryL >= middle + 1) {
+            return query(rightTreeIndex, middle + 1, r, queryL, queryR);
+        }else if (queryR < middle){
+            return query(leftTreeIndex,l,middle,queryL,queryR);
+        }else {
+            E leftResult = query(leftTreeIndex,l,middle,queryL,middle);
+            E rightResult = query(rightTreeIndex,middle + 1,r,middle + 1,queryR);
+            return merger.merge(leftResult,rightResult);
+        }
+    }
+
+//    将index位置的元素，更新为e
+    public void set(int index, E e){
+        if (index < 0 || index >= data.length){
+            throw new IllegalArgumentException("Index is illegal...");
+        }
+        data[index] = e;
+        set(0,0,data.length - 1,index,e);
+        
+    }
+
+//  在treeIndex为根的[l,r]的线段树中，更新index的值为e，
+//    这里面我们需要清楚的一点是：线段树中叶子节点存储的才是我们的数组中真正的数据，其他的节点上存储的是原来的数组经过处理的数据。
+    private void set(int treeIndex,int l,int r,int index, E e) {
+        if (l == r){
+            tree[index] = e;
+            return;
+        }
+
+        int middle = l + (r - l) / 2;
+        int leftChild = leftChild(treeIndex);
+        int rightChild = rightChild(treeIndex);
+
+        if (index >= middle + 1){
+            set(rightChild,middle + 1,r,index,e);
+        }else{
+            set(leftChild,l,middle,index,e);
+        }
+//        叶子节点一旦改变，就要更新线段树节点上的其他的数据。
+        tree[treeIndex] = merger.merge(tree[leftChild],tree[rightChild]);
+    }
+}
